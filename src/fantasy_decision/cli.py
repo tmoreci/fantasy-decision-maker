@@ -16,20 +16,15 @@ from rich.table import Table
 from rich.text import Text
 
 from fantasy_decision.cache import DEFAULT_CACHE_DIR, DiskCache
-from fantasy_decision.calibrate import (
-    BacktestRecord,
-    calibration_report,
-    record_from_decision,
-    resolve_with_actuals,
-)
-from fantasy_decision.decide import DecisionError, decide
-from fantasy_decision.dossier import gather_dossiers
+from fantasy_decision.calibrate import BacktestRecord, calibration_report, resolve_with_actuals
+from fantasy_decision.decide import DecisionError
 from fantasy_decision.explain import explain
-from fantasy_decision.models import Decision, LeagueSettings, PlayerRef
+from fantasy_decision.models import Decision
 from fantasy_decision.providers.base import ProviderError
 from fantasy_decision.providers.espn import EspnProvider
 from fantasy_decision.providers.nflverse import NflverseProvider
-from fantasy_decision.providers.sleeper import PRESETS, SleeperProvider
+from fantasy_decision.providers.sleeper import SleeperProvider
+from fantasy_decision.service import HISTORY_PATH, ConfigError, InputError, append_history, run_decision
 
 app = typer.Typer(
     add_completion=False,
@@ -38,7 +33,6 @@ app = typer.Typer(
 )
 console = Console()
 
-HISTORY_PATH = DEFAULT_CACHE_DIR / "decisions.jsonl"
 BAR_WIDTH = 28
 
 
@@ -119,20 +113,6 @@ def render(decision: Decision) -> None:
     console.print(f"\n[dim]{footer}[/dim]\n")
 
 
-def _append_history(decision: Decision) -> None:
-    """Log every call so `calibrate` has real history to score later."""
-    try:
-        HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        record = record_from_decision(decision)
-        names = {slug: d.ref.name for slug, d in decision.dossiers.items()}
-        gsis = {slug: d.ref.gsis_id for slug, d in decision.dossiers.items() if d.ref.gsis_id}
-        payload = record.model_dump(mode="json") | {"names": names, "gsis_ids": gsis}
-        with HISTORY_PATH.open("a") as handle:
-            handle.write(json.dumps(payload) + "\n")
-    except OSError as error:
-        logging.getLogger("fantasy_decision.cli").debug("could not write history: %s", error)
-
-
 # ------------------------------------------------------------------------ decide
 
 
@@ -169,48 +149,23 @@ def decide_command(  # noqa: PLR0913
     espn = EspnProvider(cache)
 
     try:
-        state = sleeper.current_state()
-        resolved_week = week or int(state.get("week") or 1)
-        resolved_season = season or str(state.get("season") or "")
-
-        league = _resolve_league(sleeper, league_id, scoring)
-
-        refs: list[PlayerRef] = []
-        for name in players:
-            try:
-                refs.append(sleeper.resolve_player(name))
-            except ProviderError as error:
-                console.print(f"[red]{error}[/red]")
-                raise typer.Exit(2) from error
-
-        if len({ref.slug for ref in refs}) != len(refs):
-            console.print("[red]Those resolve to the same player. Give me distinct options.[/red]")
-            raise typer.Exit(2)
-
-        nflverse = NflverseProvider() if advanced else None
-
-        with console.status("Gathering data..."):
-            dossiers = gather_dossiers(
-                refs,
-                season=resolved_season,
-                week=resolved_week,
+        with console.status("Looking up players...") as status:
+            outcome = run_decision(
+                players,
                 sleeper=sleeper,
                 espn=espn,
-                nflverse=nflverse,
-            )
-
-        from typesafe_sdk import TypeSafeClient  # noqa: PLC0415 - keeps --help fast
-
-        with console.status("Asking Jev..."), TypeSafeClient() as client:
-            decision = decide(
-                dossiers,
-                league,
-                season=resolved_season,
-                week=resolved_week,
-                client=client,
+                nflverse=NflverseProvider() if advanced else None,
+                week=week,
+                season=season,
                 need=need,
+                league_id=league_id,
+                scoring=scoring,
+                on_stage=status.update,
             )
-    except DecisionError as error:
+    except InputError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(2) from error
+    except (DecisionError, ConfigError) as error:
         console.print(f"[red]{error}[/red]")
         raise typer.Exit(1) from error
     except ProviderError as error:
@@ -220,27 +175,16 @@ def decide_command(  # noqa: PLR0913
         sleeper.close()
         espn.close()
 
-    _append_history(decision)
+    for note in outcome.notes:
+        console.print(f"[yellow]{note}[/yellow]")
+
+    decision = outcome.decision
+    append_history(decision)
 
     if as_json:
         console.print_json(json.dumps(decision.as_json()))
     else:
         render(decision)
-
-
-def _resolve_league(sleeper: SleeperProvider, league_id: str | None, scoring: str) -> LeagueSettings:
-    league_id = league_id or os.environ.get("SLEEPER_LEAGUE_ID")
-    if league_id:
-        try:
-            return sleeper.league(league_id)
-        except ProviderError as error:
-            console.print(f"[yellow]Could not read league {league_id} ({error}); falling back to --scoring.[/yellow]")
-
-    preset = PRESETS.get(scoring.lower())
-    if preset is None:
-        console.print(f"[red]Unknown scoring preset {scoring!r}. Use ppr, half or standard.[/red]")
-        raise typer.Exit(2)
-    return LeagueSettings(name=f"Manual ({preset.name})", scoring=preset, source="manual")
 
 
 # ------------------------------------------------------------------ sleeper help

@@ -1,0 +1,111 @@
+/* Layered on Pico: only what Pico doesn't give us. Pico handles light/dark itself. */
+
+:root {
+  --fdm-clear: #1f9d55;
+  --fdm-lean: #c98a00;
+  --fdm-toss: #8e44ad;
+  --fdm-warn-bg: #fff4d6;
+  --fdm-warn-fg: #6b4e00;
+  --fdm-error-bg: #fde8e8;
+  --fdm-error-fg: #8a1c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fdm-clear: #3ccf7e;
+    --fdm-lean: #f0b429;
+    --fdm-toss: #c084fc;
+    --fdm-warn-bg: #3d3212;
+    --fdm-warn-fg: #f6dd9a;
+    --fdm-error-bg: #3f1d1d;
+    --fdm-error-fg: #f8b4b4;
+  }
+}
+
+main.container { max-width: 40rem; padding-top: 1rem; }
+
+.masthead h1 { margin-bottom: 0.25rem; }
+.masthead p { color: var(--pico-muted-color); }
+
+.step { display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem; }
+.step span {
+  display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%;
+  background: var(--pico-primary-background); color: var(--pico-primary-inverse); font-size: 1rem;
+}
+
+.muted { color: var(--pico-muted-color); }
+.center { text-align: center; }
+
+.notice { padding: 0.75rem 1rem; border-radius: var(--pico-border-radius); background: var(--pico-card-sectioning-background-color); }
+.notice.warn { background: var(--fdm-warn-bg); color: var(--fdm-warn-fg); }
+.notice.error { background: var(--fdm-error-bg); color: var(--fdm-error-fg); }
+
+/* ------------------------------------------------------------- player chips */
+
+.position-group { margin-bottom: 0.75rem; }
+.position-group legend { font-weight: 600; font-size: 0.85rem; color: var(--pico-muted-color); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.chip { margin: 0; cursor: pointer; }
+/* Visually hidden but still focusable; !important beats Pico's disabled-input opacity. */
+.chip input, .need input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0 !important; clip-path: inset(50%); }
+.chip > span {
+  display: inline-flex; flex-direction: column; min-height: 2.75rem; padding: 0.45rem 0.8rem;
+  border: 2px solid var(--pico-muted-border-color); border-radius: 0.8rem; line-height: 1.2;
+}
+.chip small { color: var(--pico-muted-color); font-size: 0.75rem; }
+.chip input:checked + span { border-color: var(--pico-primary); background: var(--pico-primary-focus); font-weight: 600; }
+.chip input:disabled + span { opacity: 0.4; cursor: not-allowed; }
+.chip input:focus-visible + span { outline: 2px solid var(--pico-primary); outline-offset: 2px; }
+
+mark.injury { font-size: 0.7rem; padding: 0 0.3rem; margin-top: 0.15rem; align-self: flex-start; }
+
+.search-results { padding: 0; margin: 0.5rem 0 1rem; }
+.search-results li { list-style: none; margin-bottom: 0.4rem; }
+.search-results button { width: 100%; text-align: left; display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+
+/* -------------------------------------------------------------- need picker */
+
+.needs { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+.need { display: block; margin: 0; }
+.need span {
+  display: block; padding: 0.75rem 1rem; border: 2px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius); cursor: pointer;
+}
+.need input:checked + span { border-color: var(--pico-primary); background: var(--pico-primary-focus); font-weight: 600; }
+.need input:focus-visible + span { outline: 2px solid var(--pico-primary); outline-offset: 2px; }
+
+#decide-button { width: 100%; font-size: 1.15rem; }
+
+/* ------------------------------------------------------------------ verdict */
+
+.verdict { border-top: 6px solid var(--fdm-accent); }
+.verdict.clear { --fdm-accent: var(--fdm-clear); }
+.verdict.lean { --fdm-accent: var(--fdm-lean); }
+.verdict.coin-flip { --fdm-accent: var(--fdm-toss); }
+.verdict header h2 { color: var(--fdm-accent); margin: 0.4rem 0; font-size: 1.8rem; }
+.verdict .badge { background: var(--fdm-accent); color: #fff; font-weight: 600; border-radius: 1rem; padding: 0.1rem 0.7rem; }
+.verdict h3 { font-size: 1rem; margin-top: 1.25rem; }
+
+.bars { padding: 0; }
+/* Name and percentage on one line, the bar full width beneath, so long names never truncate on a phone. */
+.bars li {
+  list-style: none; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name value" "bar bar";
+  gap: 0.2rem 0.6rem; margin-bottom: 0.7rem;
+}
+.bar-name { grid-area: name; }
+.bar-value { grid-area: value; }
+.bar-track { grid-area: bar; }
+.bar-track { height: 0.9rem; background: var(--pico-muted-border-color); border-radius: 0.45rem; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--pico-muted-color); border-radius: 0.45rem; }
+.bar-value { font-variant-numeric: tabular-nums; }
+.bars li.pick { font-weight: 700; }
+.bars li.pick .bar-fill { background: var(--fdm-accent); }
+
+.warnings li::marker { content: "⚠ "; }
+
+td.edge { color: var(--fdm-clear); font-weight: 600; }
+
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: block; }

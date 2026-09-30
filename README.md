@@ -136,6 +136,34 @@ start-who "A" "B" --json
 Useful flags: `--week`, `--season`, `--scoring ppr|half|standard`, `--no-advanced`
 (skip nflverse), `--no-cache`, `--verbose`.
 
+## Web app
+
+A phone-friendly site for people who'd never open a terminal. They type their Sleeper
+username, tap two or three players from their roster (or search any player), say how
+their matchup looks, and get a verdict card with every candidate's probability.
+
+```bash
+uv pip install -e ".[web,advanced]"
+export TYPESAFE_API_KEY=ts_...
+export APP_PASSCODE=pick-a-passcode   # optional: one shared passcode for your league
+start-who-web                         # http://127.0.0.1:8000
+```
+
+The API key stays on the server, so your league never needs one. At about $0.0002 per
+decision, a whole league's season still costs pennies. `DECISIONS_PER_HOUR` (default 30
+per IP) caps how much a leaked link could spend.
+
+**Deploying.** The `Dockerfile` runs on Fly.io, Render or Railway. Set `TYPESAFE_API_KEY`
+and `APP_PASSCODE` as secrets, and mount a volume at `/data` so the cache and decision
+history (which `start-who calibrate` scores) survive restarts. See `.env.example` for
+every setting.
+
+**API-first.** Everything the pages do is also a JSON endpoint (`/api/search`,
+`/api/leagues`, `/api/roster`, `/api/decide`), documented at `/docs`. The HTMX pages are
+a thin layer over the same functions in `web/views.py`, so a JavaScript front end or a
+Discord bot can be built on the API without touching the backend. API clients
+authenticate with `Authorization: Bearer <passcode>`.
+
 ## Checking whether the confidence means anything
 
 Every decision is logged to `~/.cache/fantasy-decision-maker/decisions.jsonl`.
@@ -172,7 +200,9 @@ trust them.
 | `decide.py` | Two-pass orchestration |
 | `explain.py` | Deterministic explanation from the rubrics |
 | `calibrate.py` | Brier score, reliability curve, backtesting |
+| `service.py` | The pipeline both front ends call: resolve, gather, decide |
 | `cli.py` | Typer + Rich interface |
+| `web/` | FastAPI app: JSON API (`api.py`), HTMX pages (`pages.py`), shared logic (`views.py`) |
 
 ## Caveats
 
