@@ -1,0 +1,20 @@
+<p class="muted">Tap the players you're deciding between.</p>
+{% for position, players in groups.items() %}
+<fieldset class="position-group">
+  <legend>{{ position }}</legend>
+  <div class="chips">
+    {% for player in players %}
+    <label class="chip">
+      <input type="checkbox" name="player" value="{{ player.sleeper_id }}" data-label="{{ player.name }}">
+      <span>
+        {{ player.name }}
+        <small>{{ player.team or "FA" }}{% if player.starter %} · starting{% endif %}</small>
+        {% if player.injury_status %}<mark class="injury">{{ player.injury_status }}</mark>{% endif %}
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+</fieldset>
+{% else %}
+<p class="notice">No players on this roster yet.</p>
+{% endfor %}

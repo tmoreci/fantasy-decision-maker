@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
 
-DEFAULT_CACHE_DIR = Path.home() / ".cache" / "fantasy-decision-maker"
+# FDM_CACHE_DIR lets a server point the cache (and decision history) at a writable volume.
+DEFAULT_CACHE_DIR = Path(os.environ.get("FDM_CACHE_DIR") or Path.home() / ".cache" / "fantasy-decision-maker")
 
 
 class DiskCache:

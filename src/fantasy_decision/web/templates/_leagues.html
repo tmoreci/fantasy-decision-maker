@@ -1,0 +1,15 @@
+{% if leagues %}
+<label for="league">League</label>
+<select id="league" name="league_id" hx-get="/roster" hx-trigger="load, change" hx-target="#roster"
+        hx-include="#username, this" hx-indicator="#roster-loading">
+  {% for league in leagues %}
+  <option value="{{ league.league_id }}" {% if league.league_id == selected %}selected{% endif %}>
+    {{ league.name }}{% if league.teams %} ({{ league.teams }} teams){% endif %}
+  </option>
+  {% endfor %}
+  <option value="">No league, just search players</option>
+</select>
+<span id="roster-loading" class="htmx-indicator muted">Loading your roster…</span>
+{% else %}
+<p class="notice">{{ username }} has no leagues on Sleeper this season. You can still search for players below.</p>
+{% endif %}

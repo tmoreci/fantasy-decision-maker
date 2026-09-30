@@ -7,6 +7,7 @@ backbone for both roster import and injury/depth-chart signal.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from fantasy_decision.models import (
@@ -42,6 +43,7 @@ class SleeperProvider(HttpProvider):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._player_index: dict[str, dict[str, Any]] | None = None
+        self._player_index_loaded_at = 0.0
 
     # ---------------------------------------------------------------- state
 
@@ -55,12 +57,48 @@ class SleeperProvider(HttpProvider):
     # --------------------------------------------------------------- players
 
     def player_index(self) -> dict[str, dict[str, Any]]:
-        if self._player_index is None:
+        # Memoised with the same TTL as the disk cache, so a long-lived web process
+        # still picks up new injury designations.
+        stale = time.monotonic() - self._player_index_loaded_at > PLAYER_INDEX_TTL
+        if self._player_index is None or stale:
             payload = self.get_json(f"{BASE}/players/nfl", ttl_seconds=PLAYER_INDEX_TTL)
             if not isinstance(payload, dict):
                 raise ProviderError("sleeper: unexpected /players/nfl payload")
             self._player_index = payload
+            self._player_index_loaded_at = time.monotonic()
         return self._player_index
+
+    def search_players(self, query: str, limit: int = 8) -> list[PlayerRef]:
+        """Autocomplete: active fantasy-relevant players whose name matches, best first.
+
+        A name that starts with the query beats one with a word starting with it, which
+        beats a plain substring match. Ties go to Sleeper's own popularity rank.
+        """
+        target = _normalise(query)
+        if len(target) < 2:
+            return []
+
+        ranked: list[tuple[int, int, str, str, dict[str, Any]]] = []
+        for player_id, record in self.player_index().items():
+            if not isinstance(record, dict) or record.get("position") not in VALID_POSITIONS:
+                continue
+            if record.get("status") not in (None, "Active"):
+                continue
+            full = record.get("full_name") or f"{record.get('first_name', '')} {record.get('last_name', '')}"
+            normalised = _normalise(full)
+            if target not in normalised:
+                continue
+            if normalised.startswith(target):
+                tier = 0
+            elif any(_normalise(word).startswith(target) for word in full.split()):
+                tier = 1
+            else:
+                tier = 2
+            rank = record.get("search_rank")
+            ranked.append((tier, rank if isinstance(rank, int) else 10**6, normalised, player_id, record))
+
+        ranked.sort(key=lambda entry: entry[:3])
+        return [self._to_ref(player_id, record) for *_, player_id, record in ranked[:limit]]
 
     def resolve_player(self, query: str) -> PlayerRef:
         """Resolve a typed name (or a raw Sleeper id) to a PlayerRef.

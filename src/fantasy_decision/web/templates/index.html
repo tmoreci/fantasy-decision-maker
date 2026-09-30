@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if missing_key %}
+<p class="notice warn">Heads up: the server has no TypeSafe API key yet, so decisions will fail until the admin sets one.</p>
+{% endif %}
+
+<article>
+  <h2 class="step"><span>1</span> Find your team</h2>
+  <form id="find-team" hx-get="/leagues" hx-target="#leagues" hx-indicator="#finding"
+        {% if username %}hx-trigger="submit, load"{% endif %}>
+    <label for="username">Your Sleeper username</label>
+    <fieldset role="group">
+      <input id="username" name="username" value="{{ username }}" placeholder="e.g. tmoreci"
+             autocomplete="username" autocapitalize="off" spellcheck="false">
+      <button type="submit">Find</button>
+    </fieldset>
+    <small>Not on Sleeper? Skip this and search for players below.</small>
+    <span id="finding" class="htmx-indicator muted">Looking you up…</span>
+  </form>
+</article>
+
+<form id="pick-form" hx-post="/decide" hx-target="#result" hx-indicator="#thinking"
+      hx-disabled-elt="#decide-button" hx-disinherit="*">
+  <article>
+    <h2 class="step"><span>2</span> Pick 2 or 3 players</h2>
+    <div id="leagues"></div>
+    <div id="roster"></div>
+
+    <details id="manual" {% if not username %}open{% endif %}>
+      <summary>Search for any player</summary>
+      <input type="search" name="q" placeholder="Start typing a name…" aria-label="Search players"
+             hx-get="/search" hx-trigger="input changed delay:250ms, search" hx-target="#search-results"
+             hx-include="this" autocomplete="off">
+      <div id="search-results"></div>
+      <label for="scoring">Scoring (used when no league is picked)</label>
+      <select id="scoring" name="scoring">
+        <option value="ppr">PPR (1 point per catch)</option>
+        <option value="half">Half PPR</option>
+        <option value="standard">Standard (no catch points)</option>
+      </select>
+    </details>
+
+    <div id="picked" class="chips" aria-live="polite"></div>
+    <p id="pick-count" class="muted">No players picked yet.</p>
+  </article>
+
+  <article>
+    <h2 class="step"><span>3</span> How's your matchup looking?</h2>
+    <div class="needs">
+      {% for value, label in needs %}
+      <label class="need">
+        <input type="radio" name="need" value="{{ value }}" {% if loop.first %}checked{% endif %}>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <button id="decide-button" type="submit" disabled>Who should I start?</button>
+    <p id="thinking" class="htmx-indicator muted center">
+      <span aria-busy="true">Checking injuries, Vegas lines and usage, then asking Jev…</span>
+    </p>
+  </article>
+</form>
+
+<section id="result" tabindex="-1"></section>
+
+{% endblock %}

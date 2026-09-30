@@ -1,0 +1,82 @@
+{% set verdict = explanation.verdict %}
+{% set badge = {"clear": "Clear call", "lean": "Leaning", "coin-flip": "Toss-up"}[verdict.strength] %}
+<article class="verdict {{ verdict.strength }}">
+  <header>
+    <mark class="badge">{{ badge }}</mark>
+    <h2>{{ verdict.headline }}</h2>
+    <p>{{ verdict.detail }}</p>
+  </header>
+
+  {% for note in notes %}<p class="notice warn">{{ note }}</p>{% endfor %}
+
+  {# Every candidate's chance, not just the winner's: with three options 40% is nearly a toss-up. #}
+  <h3>Chance each is the right start</h3>
+  <ul class="bars" role="list">
+    {% for slug, probability in ranked %}
+    <li class="{{ 'pick' if slug == decision.start.pick else '' }}">
+      <span class="bar-name">{{ decision.name_for(slug) }}</span>
+      <span class="bar-track"><span class="bar-fill" style="width: {{ (probability * 100)|round(1) }}%"></span></span>
+      <span class="bar-value">{{ (probability * 100)|round|int }}%</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if explanation.differentiators %}
+  <h3>Why</h3>
+  <ul>
+    {% for line in explanation.differentiators %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if decision.safest or decision.highest_upside %}
+  <h3>If your matchup needs something specific</h3>
+  <ul>
+    {% if decision.safest %}
+    <li>Safest floor: <strong>{{ decision.name_for(decision.safest.pick) }}</strong>
+      ({{ (decision.safest.pick_probability * 100)|round|int }}%)</li>
+    {% endif %}
+    {% if decision.highest_upside %}
+    <li>Highest ceiling: <strong>{{ decision.name_for(decision.highest_upside.pick) }}</strong>
+      ({{ (decision.highest_upside.pick_probability * 100)|round|int }}%)</li>
+    {% endif %}
+  </ul>
+  {% endif %}
+
+  {% if explanation.warnings %}
+  <h3>Worth knowing</h3>
+  <ul class="warnings">
+    {% for warning in explanation.warnings %}<li>{{ warning }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if explanation.factors %}
+  <details>
+    <summary>Show the numbers</summary>
+    <div class="overflow-auto">
+      <table class="striped">
+        <thead>
+          <tr>
+            <th scope="col">Factor</th>
+            {% for slug in decision.start.probabilities %}<th scope="col">{{ decision.name_for(slug) }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for factor in explanation.factors %}
+          <tr>
+            <th scope="row">{{ factor.label }}</th>
+            {% for slug in decision.start.probabilities %}
+            <td class="{{ 'edge' if factor.edge == slug else '' }}">{{ factor.values.get(slug, "-") }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">
+      Week {{ decision.week }}, {{ decision.season }} · {{ decision.league.name }} · {{ decision.model }}
+      {% if decision.latency_ms %} · {{ decision.latency_ms|round|int }}ms{% endif %}
+      {% if cost %} · cost ${{ "%.5f"|format(cost) }}{% endif %}
+    </p>
+  </details>
+  {% endif %}
+</article>

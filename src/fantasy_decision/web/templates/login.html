@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<article>
+  <h2>This one's for our league</h2>
+  <form method="post" action="/login">
+    <label for="passcode">Passcode</label>
+    <input id="passcode" name="passcode" type="password" autocomplete="current-password" required autofocus
+           {% if failed %}aria-invalid="true"{% endif %}>
+    {% if failed %}<small>That's not it. Ask your commissioner for the passcode.</small>{% endif %}
+    <button type="submit">Let me in</button>
+  </form>
+</article>
+{% endblock %}

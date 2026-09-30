@@ -1,0 +1,16 @@
+{% if results %}
+<ul class="search-results" role="list">
+  {% for player in results %}
+  <li>
+    <button type="button" class="outline secondary" data-add-player="{{ player.sleeper_id }}"
+            data-label="{{ player.name }}" data-detail="{{ player.position or '' }} · {{ player.team or 'FA' }}">
+      <strong>{{ player.name }}</strong>
+      <small>{{ player.position or "" }} · {{ player.team or "FA" }}</small>
+      {% if player.injury_status %}<mark class="injury">{{ player.injury_status }}</mark>{% endif %}
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+{% elif query|length >= 2 %}
+<p class="muted">No active players match “{{ query }}”.</p>
+{% endif %}
